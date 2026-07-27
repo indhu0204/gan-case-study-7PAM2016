@@ -116,3 +116,81 @@ def train_dcgan_octmnist(generator, discriminator, data_loader, device, latent_d
         )
 
     return losses_discriminator, losses_generator
+
+
+
+
+import torch
+from torch import nn
+
+
+def train_tabular_gan(
+    generator,
+    discriminator,
+    data_loader,
+    device,
+    latent_dim=32,
+    lr=0.0002,
+    num_epochs=10
+):
+    criterion = nn.BCELoss()
+
+    optimizer_g = torch.optim.Adam(generator.parameters(), lr=lr, betas=(0.5, 0.999))
+    optimizer_d = torch.optim.Adam(discriminator.parameters(), lr=lr, betas=(0.5, 0.999))
+
+    gen_losses = []
+    disc_losses = []
+
+    generator.train()
+    discriminator.train()
+
+    for epoch in range(num_epochs):
+        epoch_g_loss = 0.0
+        epoch_d_loss = 0.0
+
+        for (real_batch,) in data_loader:
+            real_batch = real_batch.to(device)
+            batch_size_curr = real_batch.size(0)
+
+            real_labels = torch.ones(batch_size_curr, 1, device=device)
+            fake_labels = torch.zeros(batch_size_curr, 1, device=device)
+
+            optimizer_d.zero_grad()
+
+            real_preds = discriminator(real_batch)
+            loss_real = criterion(real_preds, real_labels)
+
+            z = torch.randn(batch_size_curr, latent_dim, device=device)
+            fake_batch = generator(z)
+            fake_preds = discriminator(fake_batch.detach())
+            loss_fake = criterion(fake_preds, fake_labels)
+
+            loss_d = loss_real + loss_fake
+            loss_d.backward()
+            optimizer_d.step()
+
+            optimizer_g.zero_grad()
+
+            z = torch.randn(batch_size_curr, latent_dim, device=device)
+            fake_batch = generator(z)
+            fake_preds = discriminator(fake_batch)
+            loss_g = criterion(fake_preds, real_labels)
+
+            loss_g.backward()
+            optimizer_g.step()
+
+            epoch_d_loss += loss_d.item()
+            epoch_g_loss += loss_g.item()
+
+        avg_d = epoch_d_loss / len(data_loader)
+        avg_g = epoch_g_loss / len(data_loader)
+
+        disc_losses.append(avg_d)
+        gen_losses.append(avg_g)
+
+        print(f"Epoch [{epoch+1}/{num_epochs}] | Loss D: {avg_d:.4f} | Loss G: {avg_g:.4f}")
+
+    return {
+        "gen_losses": gen_losses,
+        "disc_losses": disc_losses
+    }
