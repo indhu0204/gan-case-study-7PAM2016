@@ -194,3 +194,96 @@ def train_tabular_gan(
         "gen_losses": gen_losses,
         "disc_losses": disc_losses
     }
+
+
+
+import torch
+from torch import nn
+
+
+def train_dcgan_images(
+    generator,
+    discriminator,
+    data_loader,
+    device,
+    latent_dim=100,
+    lr=0.0002,
+    beta1=0.5,
+    num_epochs=10
+):
+    criterion = nn.BCELoss()
+
+    optimizer_g = torch.optim.Adam(
+        generator.parameters(),
+        lr=lr,
+        betas=(beta1, 0.999)
+    )
+    optimizer_d = torch.optim.Adam(
+        discriminator.parameters(),
+        lr=lr,
+        betas=(beta1, 0.999)
+    )
+
+    gen_losses = []
+    disc_losses = []
+
+    generator.train()
+    discriminator.train()
+
+    for epoch in range(num_epochs):
+        epoch_g_loss = 0.0
+        epoch_d_loss = 0.0
+
+        for batch in data_loader:
+            if isinstance(batch, (list, tuple)):
+                real_images = batch[0]
+            else:
+                real_images = batch
+
+            real_images = real_images.to(device)
+            batch_size_curr = real_images.size(0)
+
+            real_labels = torch.ones(batch_size_curr, 1, device=device)
+            fake_labels = torch.zeros(batch_size_curr, 1, device=device)
+
+            # Train discriminator
+            optimizer_d.zero_grad()
+
+            real_preds = discriminator(real_images)
+            loss_real = criterion(real_preds, real_labels)
+
+            z = torch.randn(batch_size_curr, latent_dim, 1, 1, device=device)
+            fake_images = generator(z)
+            fake_preds = discriminator(fake_images.detach())
+            loss_fake = criterion(fake_preds, fake_labels)
+
+            loss_d = loss_real + loss_fake
+            loss_d.backward()
+            optimizer_d.step()
+
+            # Train generator
+            optimizer_g.zero_grad()
+
+            z = torch.randn(batch_size_curr, latent_dim, 1, 1, device=device)
+            fake_images = generator(z)
+            fake_preds = discriminator(fake_images)
+            loss_g = criterion(fake_preds, real_labels)
+
+            loss_g.backward()
+            optimizer_g.step()
+
+            epoch_d_loss += loss_d.item()
+            epoch_g_loss += loss_g.item()
+
+        avg_d = epoch_d_loss / len(data_loader)
+        avg_g = epoch_g_loss / len(data_loader)
+
+        disc_losses.append(avg_d)
+        gen_losses.append(avg_g)
+
+        print(f"Epoch [{epoch+1}/{num_epochs}] | Loss D: {avg_d:.4f} | Loss G: {avg_g:.4f}")
+
+    return {
+        "gen_losses": gen_losses,
+        "disc_losses": disc_losses
+    }
