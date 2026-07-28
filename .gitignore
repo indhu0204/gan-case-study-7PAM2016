@@ -2,9 +2,13 @@
 __pycache__/
 .DS_Store
 
+# Ignore everything under data/ by default
 data/
+
+# But allow CICIDS folder and specific CSV to be tracked (for Git LFS)
 !data/cicids/
 !data/cicids/Wednesday-workingHours.pcap_ISCX.csv
 
+# Keep other datasets ignored if you want
 data/octmnist/
 data/quickdraw/
