@@ -47,7 +47,7 @@ gan-case-study-7PAM2016/
 │   ├── tabular_gan_models.py
 │   ├── training_loops.py
 │   └── eval_metrics.py
-├── report/
+├── report/(24096112)_Generative modelling case study.pdf
 ├── requirements.txt
 ├── README.md
 └── LICENSE
